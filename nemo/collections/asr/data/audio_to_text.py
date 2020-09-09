@@ -177,7 +177,7 @@ class _AudioTextDataset(Dataset):
             tl += 1
 
         output = f, fl, torch.tensor(t).long(), torch.tensor(tl).long()
-        import pdb; pdb.set_trace()
+
         if self._add_misc:
             misc = dict()
             misc['id'] = sample.id

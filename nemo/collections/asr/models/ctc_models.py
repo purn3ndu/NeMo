@@ -299,6 +299,7 @@ class EncDecCTCModel(ASRModel):
         log_probs, encoded_len, predictions = self.forward(
             input_signal=audio_signal, input_signal_length=audio_signal_len
         )
+
         loss_value = self.loss(
             log_probs=log_probs, targets=transcript, input_lengths=encoded_len, target_lengths=transcript_len
         )
