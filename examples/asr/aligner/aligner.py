@@ -1,19 +1,13 @@
 import copy
-import glob
 import json
 
-import librosa
 import numpy as np
 import scipy.io.wavfile as wave
 import torch
 from IPython.display import Audio, display
 from omegaconf import OmegaConf
-from plotly import express as px
-from plotly import graph_objects as go
-from plotly.subplots import make_subplots
 from torch.utils.data import DataLoader
 
-import nemo
 import nemo.collections.asr as nemo_asr
 from nemo.core.classes import IterableDataset
 from nemo.core.neural_types import AudioSignal, LengthsType, NeuralType
@@ -26,7 +20,7 @@ asr_model = nemo_asr.models.EncDecCTCModel.from_pretrained('QuartzNet15x5Base-En
 
 # Preserve a copy of the full config
 cfg = copy.deepcopy(asr_model._cfg)
-print(OmegaConf.to_yaml(cfg))
+# print(OmegaConf.to_yaml(cfg))
 
 # Make config overwrite-able
 OmegaConf.set_struct(cfg.preprocessor, False)
@@ -39,9 +33,9 @@ cfg.preprocessor.params.pad_to = 0
 OmegaConf.set_struct(cfg.preprocessor, True)
 
 asr_model.preprocessor = asr_model.from_config_dict(cfg.preprocessor)
+
 # Set model to inference mode
 asr_model.eval()
-
 
 # simple data layer to pass audio signal
 class AudioDataLayer(IterableDataset):
@@ -109,8 +103,18 @@ for line in data[999:]:
     text = utt['text']
     filename = utt['audio_filepath']
     print(filename)
-    print('Reference transcript:')
-    print(utt['text'])
+    print('Reference transcript:', text)
+
+    ref_text = "as soon as her father was gone tessa flew about and put everything in nice order telling the " \
+                 "children she was going out for the day and they were to mind tommo's mother who would see about "\
+                 "the fire and the dinner for the good woman loved tessa and entered into her " \
+                 "little plans with all her heart"
+    punct_text = "As soon as her father was gone, Tessa flew about and put everything in nice order, telling the " \
+                 "children she was going out for the day. And they were to mind Tommo's mother who would see about "\
+                 "the fire and the dinner. For the good woman loved Tessa and entered into her " \
+                 "little plans with all her heart."
+
+    print('Reference transcript with punctuation:', '')
 
     sample_rate, signal = wave.read(filename)
 

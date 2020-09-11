@@ -22,12 +22,11 @@ def check_alignment(word, alignment):
     :param alignment: Line from alignment file
     """
     word = re.sub("'", '', word)
-    align_word = alignment[:alignment.find(',')]
+    align_word = alignment[: alignment.find(',')]
     align_word = re.sub("'", '', align_word)
 
     if word.lower() != align_word.lower():
-        print(f"ERROR: Alignment and transcript mismatch: "
-              f"'{word}' vs '{align_word}'")
+        print(f"ERROR: Alignment and transcript mismatch: " f"'{word}' vs '{align_word}'")
         exit()
 
 
@@ -61,10 +60,10 @@ def get_utterance_alignments(utterances, alignfile):
                 if start_time is None:
                     time_idx = re.search(r"\d", alignment)
                     if time_idx:
-                        start_time = float(alignment[time_idx.start(): alignment.rfind(",")])
+                        start_time = float(alignment[time_idx.start() : alignment.rfind(",")])
 
             # Get utterance end time
-            end_time = float(alignment[alignment.rfind(',')+1:])
+            end_time = float(alignment[alignment.rfind(',') + 1 :])
 
             prev_utt_time = end_time
             if not (start_time and end_time) or (end_time - start_time) < MIN_LENGTH:
@@ -92,15 +91,11 @@ def segment_audio(utt_times, audiofile, base):
             utt_count += 1
             utt_audio_path = os.path.join(base, f"{utt_count:04}.wav")
             start_time, end_time = times
-            utt_audio = wav[floor(start_time*sr): ceil(end_time*sr)]
+            utt_audio = wav[floor(start_time * sr) : ceil(end_time * sr)]
             wavfile.write(utt_audio_path, sr, utt_audio)
 
             # Write to manifest
-            info = {
-                'audio_filepath': utt_audio_path,
-                'duration': end_time - start_time,
-                'text': utt
-            }
+            info = {'audio_filepath': utt_audio_path, 'duration': end_time - start_time, 'text': utt}
             json.dump(info, f)
             f.write('\n')
 
@@ -109,16 +104,14 @@ def main():
     try:
         base = sys.argv[1]
     except IndexError:
-        print("You must include a base filename for segmenting,"
-              " e.g. 'python segment.py <basename>'.")
+        print("You must include a base filename for segmenting," " e.g. 'python segment.py <basename>'.")
 
     # Construct filenames that we use for segmenting
     textfile = base + '.txt'
     audiofile = base + '.wav'
     alignfile = os.path.join(alignment_dir, f"align_{base}.csv")
 
-    nonexistent = [fname for fname in [textfile, audiofile, alignfile]
-                   if not os.path.exists(fname)]
+    nonexistent = [fname for fname in [textfile, audiofile, alignfile] if not os.path.exists(fname)]
     if nonexistent:
         print(f"Couldn't find files: {nonexistent}")
     else:
@@ -141,8 +134,7 @@ def main():
 
     # Yield => percentage of utterances where we have start & end times
     num_aligned = len(utt_times)
-    print(f"Yield: {num_aligned}/{num_aligned + missing_count} = "
-          f"{num_aligned / (num_aligned + missing_count)}")
+    print(f"Yield: {num_aligned}/{num_aligned + missing_count} = " f"{num_aligned / (num_aligned + missing_count)}")
 
     # Match segments to audio, and split the wav file accordingly
     print("Segmenting audio and writing a manifest...")
