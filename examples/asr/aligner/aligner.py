@@ -105,14 +105,18 @@ for line in data[999:]:
     print(filename)
     print('Reference transcript:', text)
 
-    ref_text = "as soon as her father was gone tessa flew about and put everything in nice order telling the " \
-                 "children she was going out for the day and they were to mind tommo's mother who would see about "\
-                 "the fire and the dinner for the good woman loved tessa and entered into her " \
-                 "little plans with all her heart"
-    punct_text = "As soon as her father was gone, Tessa flew about and put everything in nice order, telling the " \
-                 "children she was going out for the day. And they were to mind Tommo's mother who would see about "\
-                 "the fire and the dinner. For the good woman loved Tessa and entered into her " \
-                 "little plans with all her heart."
+    ref_text = (
+        "as soon as her father was gone tessa flew about and put everything in nice order telling the "
+        "children she was going out for the day and they were to mind tommo's mother who would see about "
+        "the fire and the dinner for the good woman loved tessa and entered into her "
+        "little plans with all her heart"
+    )
+    punct_text = (
+        "As soon as her father was gone, Tessa flew about and put everything in nice order, telling the "
+        "children she was going out for the day. And they were to mind Tommo's mother who would see about "
+        "the fire and the dinner. For the good woman loved Tessa and entered into her "
+        "little plans with all her heart."
+    )
 
     print('Reference transcript with punctuation:', '')
 
