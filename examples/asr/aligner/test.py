@@ -1,5 +1,6 @@
 import re
 import string
+from collections import OrderedDict
 from typing import List
 
 
@@ -39,10 +40,10 @@ def find_matches(ref_text: str, pred_text: str):
     # remove empty strings - left after re.split
     ref_text_splitted = [s.strip() for s in ref_text_splitted if s]
 
-    print(f'{ref_text_splitted}')
+    print(f'REF TEXT:  {ref_text_splitted}')
 
     pred_text = pred_text.split()
-    print(f'Predicted text: {pred_text}')
+    print(f'PRED TEXT: {pred_text}')
 
     # Now let's normalize the text splitted into sentences
     ref_text_splitted = normalize(ref_text_splitted)
@@ -55,9 +56,9 @@ def find_matches(ref_text: str, pred_text: str):
     for i in range(len(ref_text_words) - 1):
         last_first_words_pairs.append((ref_text_words[i][-1], ref_text_words[i + 1][0]))
 
-    print(last_first_words_pairs)
+    print(f'Split words: {last_first_words_pairs}')
 
-    matches = {}
+    matches = OrderedDict()
     prev_pos = 0
     for i, (first, last) in enumerate(last_first_words_pairs):
         try:
@@ -67,6 +68,7 @@ def find_matches(ref_text: str, pred_text: str):
 
             matches[i] = match_idx
         except Exception:
+            matches[i] = None
             print(f'{i} skipped - no matches found in the predicted text')
 
     return matches

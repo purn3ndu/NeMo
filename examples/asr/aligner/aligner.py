@@ -1,5 +1,6 @@
 import copy
 import json
+from test import find_matches
 
 import numpy as np
 import scipy.io.wavfile as wave
@@ -118,7 +119,7 @@ for line in data[999:]:
         "little plans with all her heart."
     )
 
-    print('Reference transcript with punctuation:', '')
+    print(f'Reference transcript with punctuation: {punct_text}')
 
     sample_rate, signal = wave.read(filename)
 
@@ -131,6 +132,10 @@ for line in data[999:]:
     print('\n\nPredicted text:')
     display(pred_text)
 
+    matches = find_matches(ref_text=punct_text, pred_text=pred_text)
+    print(f'Matches: {matches}')
+
+    wave.write('output/signal.wav', sample_rate, signal)
     # display(Audio(data=signal, rate=sample_rate))
 
     # get timestamps for space and blank symbols
@@ -211,21 +216,45 @@ for line in data[999:]:
     # calibration offset for timestamps
     offset = -0.15
 
+    """
     # cut words
     pos_prev = 0
     for j, spot in enumerate(spots['space']):
-        import pdb
-
-        pdb.set_trace()
-        display(pred_text.split()[j])
+        text_j = pred_text.split()[j]
+        # display(text_j)
         pos_end = offset + (spot[0] + spot[1]) / 2 * time_stride
-        display(Audio(signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)], rate=sample_rate))
+        audio_piece = signal[int(pos_prev*sample_rate):int(pos_end*sample_rate)]
+        # display(Audio(audio_piece, rate=sample_rate))
+        wave.write(f'output/{j}_{pos_prev}-{pos_end}_{text_j}.wav', sample_rate, audio_piece)
         pos_prev = pos_end
+    """
 
-    display(pred_text.split()[j + 1])
+    # displaying the last piece
+    # display(pred_text.split()[j + 1])
     # display(Audio(signal[int(pos_prev * sample_rate):],
     #               rate=sample_rate))
-    #
+
+    # cut sentences
+    pred_words = pred_text.split()
+    pos_prev = 0
+    first_word_idx = 0
+    for j, last_word_idx in matches.items():
+        text_j = pred_words[first_word_idx : last_word_idx + 1]
+        print(' '.join(text_j))
+        # cut in the middle of the space
+        space_spots = spots['space'][last_word_idx]
+        pos_end = offset + (space_spots[0] + space_spots[1]) / 2 * time_stride
+        audio_piece = signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)]
+        # display(Audio(audio_piece, rate=sample_rate))
+        wave.write(f'output/{j}.wav', sample_rate, audio_piece)
+        pos_prev = pos_end
+        first_word_idx = last_word_idx + 1
+
+    # saving the last piece
+    print(' '.join(pred_words[first_word_idx:]))
+    audio_piece = signal[int(pos_prev * sample_rate) :]
+    wave.write(f'output/{j+1}.wav', sample_rate, audio_piece)
+
     # # display alphabet
     # labels_ext = labels + ['_']
     # colors = px.colors.qualitative.Alphabet + px.colors.qualitative.Pastel2[4:4 + 3]
