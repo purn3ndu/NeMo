@@ -73,6 +73,7 @@ def find_matches(ref_text: str, pred_text: str):
 
     return matches
 
+
 if __name__ == '__main__':
     ref_text = 'The first sentence. And this the second one! Yay, one more. ' 'And the final one.\n New segment here.'
 

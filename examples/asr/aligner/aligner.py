@@ -1,7 +1,8 @@
+import argparse
 import copy
 import json
-from test import find_matches, normalize
 import os
+from test import find_matches, normalize
 
 import numpy as np
 import scipy.io.wavfile as wave
@@ -13,12 +14,16 @@ import nemo.collections.asr as nemo_asr
 from nemo.core.classes import IterableDataset
 from nemo.core.neural_types import AudioSignal, LengthsType, NeuralType
 from nemo.utils import logging
-import argparse
 
 parser = argparse.ArgumentParser(description="Token classification with pretrained BERT")
 parser.add_argument("--output_dir", default='output', type=str, help='Path to output directory')
 parser.add_argument("--audio", default='/mnt/sdb/DATA/sample/4831-25894-0009.wav', type=str, help='Path to audio file')
-parser.add_argument("--transcript", default='/mnt/sdb/DATA/sample/transcript.txt', type=str, help='Path to associated transcript with punctuation')
+parser.add_argument(
+    "--transcript",
+    default='/mnt/sdb/DATA/sample/transcript.txt',
+    type=str,
+    help='Path to associated transcript with punctuation',
+)
 parser.add_argument(
     "--debug_mode", action="store_true", help="Enables debug mode with more info on data preprocessing and evaluation",
 )
@@ -107,6 +112,7 @@ def greedy_merge(pred, labels):
         prev_c = c
     return merged
 
+
 data_layer = AudioDataLayer(sample_rate=cfg.preprocessor.params.sample_rate)
 data_loader = DataLoader(data_layer, batch_size=1, collate_fn=data_layer.collate_fn)
 labels = asr_model.cfg.decoder['params']['vocabulary']
@@ -132,7 +138,8 @@ with open(args.transcript, 'r') as f:
 # logging.debug(f'Reference transcript with punctuation: {punct_text}')
 
 sample_rate, signal = wave.read(args.audio)
-logging.info(f'Original audio length: {len(signal)/sample_rate}')
+original_duration = len(signal) / sample_rate
+logging.info(f'Original audio length: {original_duration}')
 preds = infer_signal(asr_model, signal)
 pred = [int(np.argmax(p)) for p in preds[0].detach().cpu()]
 
@@ -181,10 +188,9 @@ elif state == 'blank':
 
 logging.debug(f'Spots: {spots}')
 
-
-time_stride = asr_model.cfg.preprocessor['params']['window_stride'] # 0.01
+time_stride = asr_model.cfg.preprocessor['params']['window_stride']  # 0.01
 # take into account strided conv
-time_stride *= 2 # 0.02
+time_stride *= 2  # 0.02
 # calibration offset for timestamps
 offset = -0.15
 # cut sentences
@@ -192,6 +198,7 @@ pred_words = pred_text.split()
 pos_prev = 0
 first_word_idx = 0
 manifest_path = os.path.join(args.output_dir, 'manifest.json')
+total_duration = 0
 with open(manifest_path, 'w') as f:
     for j, last_word_idx in matches.items():
         text_j = pred_words[first_word_idx : last_word_idx + 1]
@@ -201,19 +208,27 @@ with open(manifest_path, 'w') as f:
         pos_end = offset + (space_spots[0] + space_spots[1]) / 2 * time_stride
         audio_piece = signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)]
         audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
-        import pdb; pdb.set_trace()
-        wave.write(audio_filepath, sample_rate, audio_piece)
+        duration = len(audio_piece) / sample_rate
+        total_duration += duration
 
-        # Write to manifest
-        info = {'audio_filepath': audio_filepath, 'duration': 'tbd', 'text': utt}
+        # save new audio file and write to manifest
+        wave.write(audio_filepath, sample_rate, audio_piece)
+        info = {'audio_filepath': audio_filepath, 'duration': duration, 'text': utt}
         json.dump(info, f)
         f.write('\n')
-
         pos_prev = pos_end
         first_word_idx = last_word_idx + 1
 
     # saving the last piece
     logging.debug(f'{" ".join(pred_words[first_word_idx:])}')
     audio_piece = signal[int(pos_prev * sample_rate) :]
-    wave.write(f'output/{j+1:03}.wav', sample_rate, audio_piece)
+    audio_filepath = os.path.join(args.output_dir, f'{j+1:03}.wav')
+    duration = len(audio_piece) / sample_rate
+    total_duration += duration
+    wave.write(audio_filepath, sample_rate, audio_piece)
+    # write to manifest
+    info = {'audio_filepath': audio_filepath, 'duration': duration, 'text': utt}
+    json.dump(info, f)
+    f.write('\n')
 
+assert original_duration == total_duration

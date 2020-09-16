@@ -1,7 +1,7 @@
 import copy
 import json
-from test import find_matches
 import os
+from test import find_matches
 
 import numpy as np
 import scipy.io.wavfile as wave
@@ -178,7 +178,7 @@ for line in data[999:]:
     audio = signal / 32768.0
     time_stride = asr_model.cfg.preprocessor['params']['window_stride']
 
-    hop_length = int(sample_rate * time_stride) # 160
+    hop_length = int(sample_rate * time_stride)  # 160
     n_fft = 512
 
     # # linear scale spectrogram
@@ -247,7 +247,7 @@ for line in data[999:]:
             utt_count += 1
             utt_audio_path = os.path.join(base, f"{utt_count:04}.wav")
             start_time, end_time = times
-            utt_audio = wav[floor(start_time * sr): ceil(end_time * sr)]
+            utt_audio = wav[floor(start_time * sr) : ceil(end_time * sr)]
             wavfile.write(utt_audio_path, sr, utt_audio)
 
             # Write to manifest
