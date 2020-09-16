@@ -40,10 +40,10 @@ def find_matches(ref_text: str, pred_text: str):
     # remove empty strings - left after re.split
     ref_text_splitted = [s.strip() for s in ref_text_splitted if s]
 
-    print(f'REF TEXT:  {ref_text_splitted}')
+    # print(f'REF TEXT:  {ref_text_splitted}')
 
     pred_text = pred_text.split()
-    print(f'PRED TEXT: {pred_text}')
+    # print(f'PRED TEXT: {pred_text}')
 
     # Now let's normalize the text splitted into sentences
     ref_text_splitted = normalize(ref_text_splitted)
@@ -73,10 +73,10 @@ def find_matches(ref_text: str, pred_text: str):
 
     return matches
 
+if __name__ == '__main__':
+    ref_text = 'The first sentence. And this the second one! Yay, one more. ' 'And the final one.\n New segment here.'
 
-ref_text = 'The first sentence. And this the second one! Yay, one more. ' 'And the final one.\n New segment here.'
+    pred_text = 'the first sentence and this the second one yay one more ' 'and the final one new segment here.'
 
-pred_text = 'the first sentence and this the second one yay one more ' 'and the final one new segment here.'
-
-matches = find_matches(ref_text=ref_text, pred_text=pred_text)
-print(matches)
+    matches = find_matches(ref_text=ref_text, pred_text=pred_text)
+    print(matches)
