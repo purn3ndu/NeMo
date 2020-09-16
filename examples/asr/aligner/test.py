@@ -53,8 +53,12 @@ def find_matches(ref_text: str, pred_text: str):
 
     # find the last word of the ith split and the first word of the (i+1)th split
     last_first_words_pairs = []
-    for i in range(len(ref_text_words) - 1):
-        last_first_words_pairs.append((ref_text_words[i][-1], ref_text_words[i + 1][0]))
+    try:
+        for i in range(len(ref_text_words) - 1):
+            last_first_words_pairs.append((ref_text_words[i][-1], ref_text_words[i + 1][0]))
+    except Exception:
+        print(i)
+        import pdb; pdb.set_trace()
 
     print(f'Split words: {last_first_words_pairs}')
 

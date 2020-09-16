@@ -34,6 +34,8 @@ logging.info(args)
 if args.debug_mode:
     logging.setLevel("DEBUG")
 
+os.makedirs(args.output_dir, exist_ok=True)
+
 # sample rate, Hz
 SAMPLE_RATE = 16000
 
@@ -138,9 +140,15 @@ with open(args.transcript, 'r') as f:
 # logging.debug(f'Reference transcript with punctuation: {punct_text}')
 
 sample_rate, signal = wave.read(args.audio)
+
+print('cutting...')
+signal = signal[:sample_rate * 100]
+
 original_duration = len(signal) / sample_rate
 logging.info(f'Original audio length: {original_duration}')
+
 preds = infer_signal(asr_model, signal)
+
 pred = [int(np.argmax(p)) for p in preds[0].detach().cpu()]
 
 logging.debug(f'Pred: {pred}')
