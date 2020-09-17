@@ -141,8 +141,8 @@ with open(args.transcript, 'r') as f:
 
 sample_rate, signal = wave.read(args.audio)
 
-print('cutting...')
-signal = signal[:sample_rate * 100]
+# print('cutting...')
+# signal = signal[:sample_rate * 10]
 
 original_duration = len(signal) / sample_rate
 logging.info(f'Original audio length: {original_duration}')
@@ -159,7 +159,6 @@ logging.debug(f'Predicted text: {pred_text}')
 matches = find_matches(ref_text=original_text, pred_text=pred_text)
 logging.debug(f'Matches: {matches}')
 
-wave.write(os.path.join(args.output_dir, 'signal.wav'), sample_rate, signal)
 
 # get timestamps for space and blank symbols
 spots = {}
@@ -208,35 +207,32 @@ first_word_idx = 0
 manifest_path = os.path.join(args.output_dir, 'manifest.json')
 total_duration = 0
 with open(manifest_path, 'w') as f:
-    for j, last_word_idx in matches.items():
-        text_j = pred_words[first_word_idx : last_word_idx + 1]
-        utt = ' '.join(text_j)
-        # cut in the middle of the space
-        space_spots = spots['space'][last_word_idx]
-        pos_end = offset + (space_spots[0] + space_spots[1]) / 2 * time_stride
-        audio_piece = signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)]
-        audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
-        duration = len(audio_piece) / sample_rate
-        total_duration += duration
+    for j, (last_word_idx, ref_text) in enumerate(matches):
+        # for the last segment
+        if last_word_idx is None:
+            # saving the last piece
+            logging.debug(f'{" ".join(pred_words[first_word_idx:])}')
+            audio_piece = signal[int(pos_prev * sample_rate) :]
+            audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
+            duration = len(audio_piece) / sample_rate
+            total_duration += duration
+        else:
+            # cut in the middle of the space
+            space_spots = spots['space'][last_word_idx]
+            pos_end = offset + (space_spots[0] + space_spots[1]) / 2 * time_stride
+            audio_piece = signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)]
+            audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
+            duration = len(audio_piece) / sample_rate
+            total_duration += duration
+            pos_prev = pos_end
+            first_word_idx = last_word_idx + 1
 
         # save new audio file and write to manifest
         wave.write(audio_filepath, sample_rate, audio_piece)
-        info = {'audio_filepath': audio_filepath, 'duration': duration, 'text': utt}
+        info = {'audio_filepath': audio_filepath, 'duration': duration, 'text': ref_text}
         json.dump(info, f)
         f.write('\n')
-        pos_prev = pos_end
-        first_word_idx = last_word_idx + 1
 
-    # saving the last piece
-    logging.debug(f'{" ".join(pred_words[first_word_idx:])}')
-    audio_piece = signal[int(pos_prev * sample_rate) :]
-    audio_filepath = os.path.join(args.output_dir, f'{j+1:03}.wav')
-    duration = len(audio_piece) / sample_rate
-    total_duration += duration
-    wave.write(audio_filepath, sample_rate, audio_piece)
-    # write to manifest
-    info = {'audio_filepath': audio_filepath, 'duration': duration, 'text': utt}
-    json.dump(info, f)
-    f.write('\n')
-
-assert original_duration == total_duration
+print(f'Original duration: {original_duration}')
+print(f'All pieces duration: {total_duration}')
+assert round(original_duration, 2) == round(total_duration, 2)
