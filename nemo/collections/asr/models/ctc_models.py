@@ -363,6 +363,35 @@ class EncDecCTCModel(ASRModel):
         temporary_datalayer = self._setup_dataloader_from_config(config=DictConfig(dl_config))
         return temporary_datalayer
 
+    def infer_signal(self, signal, sample_rate):
+        mode = self.training
+        self.eval()
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        data_loader = self._setup_infer_dataloader(signal, sample_rate)
+        batch = next(iter(data_loader))
+        audio_signal, audio_signal_len = batch
+        log_probs, _, _ = self.forward(input_signal=audio_signal.to(device),
+                                       input_signal_length=audio_signal_len.to(device))
+
+        self.train(mode)
+        return log_probs
+
+    def _setup_infer_dataloader(self, signal, sample_rate:int) -> 'torch.utils.data.DataLoader':
+        """
+        Setup function for a temporary data loader which wraps the provided audio file.
+
+        Args:
+            sample_rate: sample rate
+
+        Returns:
+            A pytorch DataLoader for the given audio file(s).
+        """
+        data_layer = AudioDataLayer(sample_rate=sample_rate)
+        data_layer.set_signal(signal)
+        return torch.utils.data.DataLoader(
+            dataset=data_layer,
+            batch_size=1,
+            collate_fn=data_layer.collate_fn)
 
 class JasperNet(EncDecCTCModel):
     pass
@@ -370,3 +399,36 @@ class JasperNet(EncDecCTCModel):
 
 class QuartzNet(EncDecCTCModel):
     pass
+
+from nemo.core.classes import IterableDataset
+import numpy as np
+# simple data layer to pass audio signal
+class AudioDataLayer(IterableDataset):
+    @property
+    def output_types(self):
+        return {
+            'audio_signal': NeuralType(('B', 'T'), AudioSignal(freq=self._sample_rate)),
+            'a_sig_length': NeuralType(tuple('B'), LengthsType()),
+        }
+
+    def __init__(self, sample_rate):
+        super().__init__()
+        self._sample_rate = sample_rate
+        self.output = True
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self.output:
+            raise StopIteration
+        self.output = False
+        return torch.as_tensor(self.signal, dtype=torch.float32), torch.as_tensor(self.signal_shape, dtype=torch.int64)
+
+    def set_signal(self, signal):
+        self.signal = signal.astype(np.float32) / 32768.0
+        self.signal_shape = self.signal.size
+        self.output = True
+
+    def __len__(self):
+        return 1

@@ -39,8 +39,8 @@ os.makedirs(args.output_dir, exist_ok=True)
 # sample rate, Hz
 SAMPLE_RATE = 16000
 
-asr_model = nemo_asr.models.EncDecCTCModel.from_pretrained('QuartzNet15x5Base-En')
-
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+asr_model = nemo_asr.models.EncDecCTCModel.from_pretrained('QuartzNet15x5Base-En').to(device)
 
 # Preserve a copy of the full config
 cfg = copy.deepcopy(asr_model._cfg)
@@ -61,47 +61,17 @@ asr_model.preprocessor = asr_model.from_config_dict(cfg.preprocessor)
 # Set model to inference mode
 asr_model.eval()
 
-# simple data layer to pass audio signal
-class AudioDataLayer(IterableDataset):
-    @property
-    def output_types(self):
-        return {
-            'audio_signal': NeuralType(('B', 'T'), AudioSignal(freq=self._sample_rate)),
-            'a_sig_length': NeuralType(tuple('B'), LengthsType()),
-        }
-
-    def __init__(self, sample_rate):
-        super().__init__()
-        self._sample_rate = sample_rate
-        self.output = True
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if not self.output:
-            raise StopIteration
-        self.output = False
-        return torch.as_tensor(self.signal, dtype=torch.float32), torch.as_tensor(self.signal_shape, dtype=torch.int64)
-
-    def set_signal(self, signal):
-        self.signal = signal.astype(np.float32) / 32768.0
-        self.signal_shape = self.signal.size
-        self.output = True
-
-    def __len__(self):
-        return 1
 
 
-# inference method for audio signal (single instance)
-def infer_signal(model, signal):
-    data_layer.set_signal(signal)
-    batch = next(iter(data_loader))
-    audio_signal, audio_signal_len = batch
-    log_probs, encoded_len, predictions = model.forward(
-        input_signal=audio_signal, input_signal_length=audio_signal_len
-    )
-    return log_probs
+
+# # inference method for audio signal (single instance)
+# def infer_signal(model, signal):
+#     data_layer.set_signal(signal)
+#
+#     batch = next(iter(data_loader))
+#     audio_signal, audio_signal_len = batch
+#     log_probs, encoded_len, predictions = model.forward(input_signal=audio_signal.to(device), input_signal_length=audio_signal_len.to(device))
+#     return log_probs
 
 
 def greedy_merge(pred, labels):
@@ -115,8 +85,9 @@ def greedy_merge(pred, labels):
     return merged
 
 
-data_layer = AudioDataLayer(sample_rate=cfg.preprocessor.params.sample_rate)
-data_loader = DataLoader(data_layer, batch_size=1, collate_fn=data_layer.collate_fn)
+# data_layer = AudioDataLayer(sample_rate=cfg.preprocessor.params.sample_rate)
+# data_loader = DataLoader(data_layer, batch_size=1, collate_fn=data_layer.collate_fn)
+
 labels = asr_model.cfg.decoder['params']['vocabulary']
 logging.debug(labels)
 logging.debug(asr_model.cfg.preprocessor['params'])
@@ -147,7 +118,7 @@ sample_rate, signal = wave.read(args.audio)
 original_duration = len(signal) / sample_rate
 logging.info(f'Original audio length: {original_duration}')
 
-preds = infer_signal(asr_model, signal)
+preds = asr_model.infer_signal(signal, sample_rate)
 
 pred = [int(np.argmax(p)) for p in preds[0].detach().cpu()]
 
