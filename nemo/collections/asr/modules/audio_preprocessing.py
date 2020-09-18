@@ -244,8 +244,6 @@ class AudioToMelSpectrogramPreprocessor(AudioPreprocessor):
             pad_value=pad_value,
             mag_power=mag_power,
         )
-        # self.featurizer.sdfsd
-        self.featurizer = self.featurizer.cuda()
 
     def get_features(self, input_signal, length):
         return self.featurizer(input_signal, length)

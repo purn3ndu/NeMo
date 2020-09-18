@@ -1,18 +1,12 @@
 import argparse
-import copy
 import json
 import os
-from test import find_matches, normalize
+from matcher import find_matches, normalize
 
 import numpy as np
 import scipy.io.wavfile as wave
-import torch
-from omegaconf import OmegaConf
-from torch.utils.data import DataLoader
 
 import nemo.collections.asr as nemo_asr
-from nemo.core.classes import IterableDataset
-from nemo.core.neural_types import AudioSignal, LengthsType, NeuralType
 from nemo.utils import logging
 
 parser = argparse.ArgumentParser(description="Token classification with pretrained BERT")
@@ -36,43 +30,6 @@ if args.debug_mode:
 
 os.makedirs(args.output_dir, exist_ok=True)
 
-# sample rate, Hz
-SAMPLE_RATE = 16000
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-asr_model = nemo_asr.models.EncDecCTCModel.from_pretrained('QuartzNet15x5Base-En').to(device)
-
-# Preserve a copy of the full config
-cfg = copy.deepcopy(asr_model._cfg)
-# print(OmegaConf.to_yaml(cfg))
-
-# Make config overwrite-able
-OmegaConf.set_struct(cfg.preprocessor, False)
-
-# some changes for streaming scenario
-cfg.preprocessor.params.dither = 0.0
-cfg.preprocessor.params.pad_to = 0
-
-# Disable config overwriting
-OmegaConf.set_struct(cfg.preprocessor, True)
-
-asr_model.preprocessor = asr_model.from_config_dict(cfg.preprocessor)
-
-# Set model to inference mode
-asr_model.eval()
-
-
-
-
-# # inference method for audio signal (single instance)
-# def infer_signal(model, signal):
-#     data_layer.set_signal(signal)
-#
-#     batch = next(iter(data_loader))
-#     audio_signal, audio_signal_len = batch
-#     log_probs, encoded_len, predictions = model.forward(input_signal=audio_signal.to(device), input_signal_length=audio_signal_len.to(device))
-#     return log_probs
-
 
 def greedy_merge(pred, labels):
     blank_id = len(labels)
@@ -85,41 +42,23 @@ def greedy_merge(pred, labels):
     return merged
 
 
-# data_layer = AudioDataLayer(sample_rate=cfg.preprocessor.params.sample_rate)
-# data_loader = DataLoader(data_layer, batch_size=1, collate_fn=data_layer.collate_fn)
+asr_model = nemo_asr.models.EncDecCTCModel.from_pretrained('QuartzNet15x5Base-En', map_location='cpu')
 
 labels = asr_model.cfg.decoder['params']['vocabulary']
 logging.debug(labels)
 logging.debug(asr_model.cfg.preprocessor['params'])
 
+
 with open(args.transcript, 'r') as f:
     original_text = f.read()
 
-# ref_text = (
-#     "as soon as her father was gone tessa flew about and put everything in nice order telling the "
-#     "children she was going out for the day and they were to mind tommo's mother who would see about "
-#     "the fire and the dinner for the good woman loved tessa and entered into her "
-#     "little plans with all her heart"
-# )
-# punct_text = (
-#     "As soon as her father was gone, Tessa flew about and put everything in nice order, telling the "
-#     "children she was going out for the day. And they were to mind Tommo's mother who would see about "
-#     "the fire and the dinner. For the good woman loved Tessa and entered into her "
-#     "little plans with all her heart."
-# )
-
-# logging.debug(f'Reference transcript with punctuation: {punct_text}')
-
 sample_rate, signal = wave.read(args.audio)
 
-# print('cutting...')
-# signal = signal[:sample_rate * 10]
 
 original_duration = len(signal) / sample_rate
 logging.info(f'Original audio length: {original_duration}')
 
 preds = asr_model.infer_signal(signal, sample_rate)
-
 pred = [int(np.argmax(p)) for p in preds[0].detach().cpu()]
 
 logging.debug(f'Pred: {pred}')
@@ -175,7 +114,7 @@ offset = -0.15
 pred_words = pred_text.split()
 pos_prev = 0
 first_word_idx = 0
-manifest_path = os.path.join(args.output_dir, 'manifest.json')
+manifest_path = os.path.join(args.output_dir, os.path.basename(args.audio) + '_manifest.json')
 total_duration = 0
 with open(manifest_path, 'w') as f:
     for j, (last_word_idx, ref_text) in enumerate(matches):
@@ -184,19 +123,17 @@ with open(manifest_path, 'w') as f:
             # saving the last piece
             logging.debug(f'{" ".join(pred_words[first_word_idx:])}')
             audio_piece = signal[int(pos_prev * sample_rate) :]
-            audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
-            duration = len(audio_piece) / sample_rate
-            total_duration += duration
         else:
             # cut in the middle of the space
             space_spots = spots['space'][last_word_idx]
             pos_end = offset + (space_spots[0] + space_spots[1]) / 2 * time_stride
             audio_piece = signal[int(pos_prev * sample_rate) : int(pos_end * sample_rate)]
-            audio_filepath = os.path.join(args.output_dir, f'{j:03}.wav')
-            duration = len(audio_piece) / sample_rate
-            total_duration += duration
             pos_prev = pos_end
             first_word_idx = last_word_idx + 1
+
+        audio_filepath = os.path.join(args.output_dir, os.path.basename(args.audio) + f'{j:03}.wav')
+        duration = len(audio_piece) / sample_rate
+        total_duration += duration
 
         # save new audio file and write to manifest
         wave.write(audio_filepath, sample_rate, audio_piece)

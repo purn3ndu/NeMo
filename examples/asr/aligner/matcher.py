@@ -1,6 +1,5 @@
 import re
 import string
-from collections import OrderedDict
 from typing import List
 
 
@@ -88,10 +87,8 @@ def find_matches(ref_text: str, pred_text: str):
                 else:
                     prev_pos += 1
             except IndexError:
-                import pdb
-
-                pdb.set_trace()
                 print(pred_match_idx)
+                continue
 
         if match_found:
             matches.append((pred_match_idx, ' '.join(ref_text_splitted_clean[matched_ref_pos + 1 : i + 1])))
@@ -106,7 +103,7 @@ if __name__ == '__main__':
     ref_text = (
         'The first sentence. And this the second one! Yay, one more. And the final one. ! New segment here. LAST ONE.'
     )
-    pred_text = 'the first sentence and this the second one yay one more gnd the final one new segment here last one.'
+    pred_text = 'the first sentece and this the second one yay one more gnd the final one new segment here last one.'
 
     matches = find_matches(ref_text=ref_text, pred_text=pred_text)
     print(matches)

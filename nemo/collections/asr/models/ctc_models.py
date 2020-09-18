@@ -18,6 +18,7 @@ import tempfile
 from math import ceil
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Trainer
@@ -27,6 +28,7 @@ from nemo.collections.asr.losses.ctc import CTCLoss
 from nemo.collections.asr.metrics.wer import WER
 from nemo.collections.asr.models.asr_model import ASRModel
 from nemo.collections.asr.parts.perturb import process_augmentations
+from nemo.core.classes import IterableDataset
 from nemo.core.classes.common import PretrainedModelInfo, typecheck
 from nemo.core.neural_types import AudioSignal, LabelsType, LengthsType, LogprobsType, NeuralType
 from nemo.utils import logging
@@ -392,20 +394,26 @@ class EncDecCTCModel(ASRModel):
         temporary_datalayer = self._setup_dataloader_from_config(config=DictConfig(dl_config))
         return temporary_datalayer
 
-    def infer_signal(self, signal, sample_rate):
+    def infer_signal(self, signal, sample_rate, dither=0.0, pad_to=0):
+        self.preprocessor.featurizer.dither = dither
+        self.preprocessor.featurizer.pad_to = pad_to
+
         mode = self.training
         self.eval()
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        device = self.device
         data_loader = self._setup_infer_dataloader(signal, sample_rate)
         batch = next(iter(data_loader))
+
         audio_signal, audio_signal_len = batch
-        log_probs, _, _ = self.forward(input_signal=audio_signal.to(device),
-                                       input_signal_length=audio_signal_len.to(device))
+        log_probs, _, _ = self.forward(
+            input_signal=audio_signal.to(device), input_signal_length=audio_signal_len.to(device)
+        )
 
         self.train(mode)
         return log_probs
 
-    def _setup_infer_dataloader(self, signal, sample_rate:int) -> 'torch.utils.data.DataLoader':
+    def _setup_infer_dataloader(self, signal, sample_rate: int) -> 'torch.utils.data.DataLoader':
         """
         Setup function for a temporary data loader which wraps the provided audio file.
 
@@ -418,9 +426,9 @@ class EncDecCTCModel(ASRModel):
         data_layer = AudioDataLayer(sample_rate=sample_rate)
         data_layer.set_signal(signal)
         return torch.utils.data.DataLoader(
-            dataset=data_layer,
-            batch_size=1,
-            collate_fn=data_layer.collate_fn)
+            dataset=data_layer, batch_size=1, collate_fn=data_layer.collate_fn, num_workers=1
+        )
+
 
 class JasperNet(EncDecCTCModel):
     pass
@@ -429,8 +437,7 @@ class JasperNet(EncDecCTCModel):
 class QuartzNet(EncDecCTCModel):
     pass
 
-from nemo.core.classes import IterableDataset
-import numpy as np
+
 # simple data layer to pass audio signal
 class AudioDataLayer(IterableDataset):
     @property
