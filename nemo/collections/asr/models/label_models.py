@@ -111,7 +111,7 @@ class EncDecSpeakerLabelModel(ModelPT):
         return torch.utils.data.DataLoader(
             dataset=self.dataset,
             batch_size=config['batch_size'],
-            collate_fn=self.dataset.fixed_seq_collate_fn,
+            collate_fn=self.dataset.sliced_seq_collate_fn,
             drop_last=config.get('drop_last', False),
             shuffle=config['shuffle'],
             num_workers=config.get('num_workers', 2),
@@ -324,7 +324,7 @@ class ExtractSpeakerEmbeddingsModel(EncDecSpeakerLabelModel):
                     raise KeyError("Embeddings for label {} already present in emb dictionary".format(uniq_name))
                 num_slices = slices[idx]
                 end_idx = start_idx + num_slices
-                out_embeddings[uniq_name] = embs[start_idx:end_idx].mean(axis=0)
+                out_embeddings[uniq_name] = embs[start_idx:end_idx]#.mean(axis=0)
                 start_idx = end_idx
 
         embedding_dir = os.path.join(self.embedding_dir, 'embeddings')

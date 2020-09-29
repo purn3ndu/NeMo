@@ -165,7 +165,7 @@ target_label_n, "offset": offset_in_sec_n}
         slice_length = self.featurizer.sample_rate * self.time_length
         _, audio_lengths, _, tokens_lengths = zip(*batch)
         slice_length = min(slice_length, max(audio_lengths))
-        shift = 1 * self.featurizer.sample_rate
+        shift = 0.75 * self.featurizer.sample_rate
         has_audio = audio_lengths[0] is not None
 
         audio_signal, num_slices, tokens, audio_lengths = [], [], [], []
@@ -185,10 +185,10 @@ target_label_n, "offset": offset_in_sec_n}
                     tokens.extend([tokens_i] * 1)
                     audio_lengths.extend([slice_length] * 1)
                 else:
-                    slices = (sig_len - slice_length) // shift + 1
+                    slices = int((sig_len - slice_length) // shift) + 1
                     for slice_id in range(slices):
-                        start_idx = slice_id * shift
-                        end_idx = start_idx + slice_length
+                        start_idx = int(slice_id * shift)
+                        end_idx = int(start_idx + slice_length)
                         signal = sig[start_idx:end_idx]
                         audio_signal.append(signal)
 
