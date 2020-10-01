@@ -85,7 +85,7 @@ class EncDecSpeakerLabelModel(ModelPT):
         else:
             logging.info("Training with Softmax-CrossEntropy loss")
             self.loss = CELoss()
-
+        self.task = None
         self._accuracy = TopKClassificationAccuracy(top_k=[1])
 
     def __setup_dataloader_from_config(self, config: Optional[Dict]):
@@ -108,10 +108,18 @@ class EncDecSpeakerLabelModel(ModelPT):
             time_length=config.get('time_length', 8),
         )
 
+        if self.task == 'diarization':
+            logging.info("Setting up diarization parameters")
+            _collate_func = self.dataset.sliced_seq_collate_fn
+            self.dataset.time_length = self.window
+            self.dataset.shift = self.shift
+        else:
+            _collate_func = self.dataset.fixed_seq_collate_fn
+
         return torch.utils.data.DataLoader(
             dataset=self.dataset,
             batch_size=config['batch_size'],
-            collate_fn=self.dataset.sliced_seq_collate_fn,
+            collate_fn=_collate_func,
             drop_last=config.get('drop_last', False),
             shuffle=config['shuffle'],
             num_workers=config.get('num_workers', 2),
@@ -134,6 +142,15 @@ class EncDecSpeakerLabelModel(ModelPT):
             test_data_layer_params['shuffle'] = False
         if hasattr(self, 'dataset'):
             test_data_layer_params['labels'] = self.dataset.labels
+
+        if 'task' in self._cfg and self._cfg['task']:
+            logging.info("Extracting embeddings for Diarization")
+            self.task = self._cfg.task.name.lower()
+            self.window = self._cfg.task.get('window', 8)
+            self.shift = self._cfg.task.get('shift', 1)
+        else:
+            self.task = 'verification'
+
         self.embedding_dir = test_data_layer_params.get('embedding_dir', './')
         self.test_manifest = test_data_layer_params.get('manifest_filepath', None)
         self._test_dl = self.__setup_dataloader_from_config(config=test_data_layer_params)
@@ -324,7 +341,10 @@ class ExtractSpeakerEmbeddingsModel(EncDecSpeakerLabelModel):
                     raise KeyError("Embeddings for label {} already present in emb dictionary".format(uniq_name))
                 num_slices = slices[idx]
                 end_idx = start_idx + num_slices
-                out_embeddings[uniq_name] = embs[start_idx:end_idx]#.mean(axis=0)
+                if self.task == 'diarization':
+                    out_embeddings[uniq_name] = embs[start_idx:end_idx]
+                else:
+                    out_embeddings[uniq_name] = embs[start_idx:end_idx].mean(axis=0)
                 start_idx = end_idx
 
         embedding_dir = os.path.join(self.embedding_dir, 'embeddings')

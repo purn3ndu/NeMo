@@ -15,7 +15,6 @@
 import os
 
 import pytorch_lightning as pl
-from omegaconf.listconfig import ListConfig
 from pytorch_lightning import seed_everything
 
 from nemo.collections.asr.models import EncDecSpeakerLabelModel

@@ -94,6 +94,7 @@ target_label_n, "offset": offset_in_sec_n}
         self.trim = trim
         self.load_audio = load_audio
         self.time_length = time_length
+        self.shift = 0.75
         logging.info("Timelength considered for collate func is {}".format(time_length))
 
         self.labels = labels if labels else self.collection.uniq_labels
@@ -160,12 +161,10 @@ target_label_n, "offset": offset_in_sec_n}
                 LongTensor):  A tuple of tuples of signal, signal lengths,
                 encoded tokens, and encoded tokens length.  This collate func
                 assumes the signals are 1d torch tensors (i.e. mono audio).
-            fixed_length (Optional[int]): length of input signal to be considered
         """
         slice_length = self.featurizer.sample_rate * self.time_length
         _, audio_lengths, _, tokens_lengths = zip(*batch)
-        slice_length = min(slice_length, max(audio_lengths))
-        shift = 0.75 * self.featurizer.sample_rate
+        shift = self.shift * self.featurizer.sample_rate
         has_audio = audio_lengths[0] is not None
 
         audio_signal, num_slices, tokens, audio_lengths = [], [], [], []
