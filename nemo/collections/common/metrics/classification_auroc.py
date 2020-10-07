@@ -12,5 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nemo.collections.common.metrics.classification_accuracy import TopKClassificationAccuracy, compute_topk_accuracy
-from nemo.collections.common.metrics.classification_auroc import tensor2list, auroc
+import torch
+from pytorch_lightning.metrics import TensorMetric
+from sklearn.metrics import roc_auc_score
+from typing import List, Union
+__all__ = ['tensor2list', 'auroc']
+
+
+def tensor2list(tensor: torch.Tensor) -> List[Union[int, float]]:
+    """ Converts tensor to a list """
+    return tensor.detach().cpu().tolist()
+
+def auroc(preds: List[float], labels: List[float]):
+    auc_roc = roc_auc_score(labels, preds, multi_class='ovr')
+    return  auc_roc
