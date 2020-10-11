@@ -13,14 +13,18 @@
 # limitations under the License.
 
 from typing import List
+from omegaconf import DictConfig
 
 import torch
-from megatron import mpu
-from omegaconf import DictConfig
+from torch.optim import Optimizer
+from torch.nn.parallel import DistributedDataParallel
+
 from pytorch_lightning import Trainer
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning.overrides.data_parallel import LightningDistributedDataParallel
-from torch.nn.parallel import DistributedDataParallel
+from pytorch_lightning.trainer.training_loop import TrainLoop
+
+from megatron import mpu
 
 from nemo.collections.nlp.modules import MegatronBertEncoder
 from nemo.core.classes import ModelPT
@@ -122,3 +126,29 @@ class NLPModel(ModelPT):
                     raise NotImplementedError(
                         f'The BERT encoder: {self.bert_model} does not support model parallelism yet.'
                     )
+
+    def on_before_backward(self, batch_idx, optimizer):
+        """ PTL hook that is used for gradient clipping and gradient tracking
+
+        Args:
+            batch_idx (int): batch index
+            optimizer (Optimizer): Torch optimizer
+
+        Returns:
+            dict: Gradient norm dictionary
+        """        
+        # TODO: track model parallel gradient norms
+        #grad_norm_dic = self._track_gradient_norm()
+
+        app_state = AppState()
+
+        if app_state.model_parallel_size is not None:
+            if isinstance(self.bert_model, MegatronBertEncoder):
+                mp_params = self.bert_model.parameters()
+
+                # clip gradients
+                #mpu.grads.clip_grad_norm(parameters, max_norm, norm_type)
+                #self.trainer.accelerator_backend.clip_gradients(optimizer)
+        else:
+            # If not using model parallel use default PTL implementation
+            return TrainLoop.on_before_backward(self, batch_idx, optimizer)

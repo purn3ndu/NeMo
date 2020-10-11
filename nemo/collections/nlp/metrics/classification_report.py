@@ -15,14 +15,14 @@
 from typing import Dict
 
 import torch
-from pytorch_lightning.metrics import TensorMetric
+from pytorch_lightning.metrics import Metric
 
 from nemo.utils import logging
 
 __all__ = ['ClassificationReport']
 
 
-class ClassificationReport(TensorMetric):
+class ClassificationReport(Metric):
     """
     This metric computes the number of True Positive, False Negative, and False Positive examples per class.
     When doing distributed training/evaluation the result of res=ClassificationReport(predictions, labels) calls
@@ -55,14 +55,15 @@ class ClassificationReport(TensorMetric):
     """
 
     def __init__(self, num_classes: int, label_ids: Dict[str, int] = None):
-        super(ClassificationReport, self).__init__(name="ClassificationReport")
+        #super(ClassificationReport, self).__init__(name="ClassificationReport")
+        super(ClassificationReport, self).__init__()
         self.num_classes = num_classes
         if label_ids:
             self.ids_to_labels = {v: k for k, v in label_ids.items()}
         else:
             self.ids_to_labels = None
 
-    def forward(self, predictions: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def update(self, predictions: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         TP = []
         FN = []
         FP = []
@@ -75,7 +76,7 @@ class ClassificationReport(TensorMetric):
             FN.append((label_predicted != current_label)[current_label].sum())
         return torch.tensor([TP, FP, FN]).to(predictions.device)
 
-    def get_precision_recall_f1(
+    def compute(
         self, tp: torch.Tensor, fn: torch.Tensor, fp: torch.Tensor, mode='macro',
     ):
         """

@@ -78,7 +78,12 @@ tutorials/nlp/Token_Classification_Named_Entity_Recognition.ipynb
 @hydra_runner(config_path="conf", config_name="token_classification_config")
 def main(cfg: DictConfig) -> None:
     trainer = pl.Trainer(**cfg.trainer)
-    exp_dir = exp_manager(trainer, cfg.get("exp_manager", None))
+    # TODO: Revert this change
+    if 'exp_manager' in cfg:
+        exp_dir = exp_manager(trainer, cfg.get("exp_manager", None))
+    else:
+        exp_dir = None
+    
     do_training = True
     if not cfg.pretrained_model:
         logging.info(f'Config: {OmegaConf.to_yaml(cfg)}')
