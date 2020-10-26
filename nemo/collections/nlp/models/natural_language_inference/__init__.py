@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nemo.collections.nlp.models.zeroshot_classification.zeroshot_model import ZSModel
+from nemo.collections.nlp.models.natural_language_inference.inference_model import NLIModel
